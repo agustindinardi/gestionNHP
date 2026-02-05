@@ -91,7 +91,7 @@ export default async function PrinterDetailPage({ params }: Props) {
               <span className="text-sm font-medium">{formatDate(printer.created_at)}</span>
             </div>
             <div className="flex justify-between py-2 border-b border-border">
-              <span className="text-sm text-muted-foreground">Última actualización</span>
+              <span className="text-sm text-muted-foreground">Última actualización de contador</span>
               <span className="text-sm font-medium">{formatDate(printer.updated_at)}</span>
             </div>
             <EditPrinterColorForm printerId={printer.id} currentColor={printer.color || "#3b82f6"} />

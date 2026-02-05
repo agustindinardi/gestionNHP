@@ -41,7 +41,7 @@ export function UpdateCounterForm({ printerId, currentCounter }: Props) {
 
     const { error: updateError } = await supabase
       .from("printers")
-      .update({ counter: counterValue })
+      .update({ counter: counterValue, updated_at: new Date().toISOString() })
       .eq("id", printerId)
 
     if (updateError) {
