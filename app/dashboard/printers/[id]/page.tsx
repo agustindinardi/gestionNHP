@@ -3,11 +3,13 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, History, Printer, Hash, Calendar, Plus } from "lucide-react"
+import { History, Printer, Hash, Calendar, Plus } from "lucide-react"
 import { UpdateCounterForm } from "@/components/printers/update-counter-form"
 import { EditPrinterNameForm } from "@/components/printers/edit-printer-name-form"
+import { EditPrinterSerialForm } from "@/components/printers/edit-printer-serial-form"
 import { EditPrinterColorForm } from "@/components/printers/edit-printer-color-form"
 import { DeletePrinterButton } from "@/components/printers/delete-printer-button"
+import { BackButton } from "@/components/ui/back-button"
 import { formatDate, formatNumber } from "@/lib/format-date"
 
 interface Props {
@@ -42,11 +44,7 @@ export default async function PrinterDetailPage({ params }: Props) {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center gap-3 sm:gap-4">
-        <Button asChild variant="ghost" size="icon" className="shrink-0">
-          <Link href="/dashboard/printers">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-        </Button>
+        <BackButton />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3">
             <div
@@ -86,6 +84,7 @@ export default async function PrinterDetailPage({ params }: Props) {
           </CardHeader>
           <CardContent className="space-y-3">
             <EditPrinterNameForm printerId={printer.id} currentName={printer.name} />
+            <EditPrinterSerialForm printerId={printer.id} currentSerialNumber={printer.serial_number} />
             <div className="flex justify-between py-2 border-b border-border">
               <span className="text-sm text-muted-foreground">Fecha de registro</span>
               <span className="text-sm font-medium">{formatDate(printer.created_at)}</span>

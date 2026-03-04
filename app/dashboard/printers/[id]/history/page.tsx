@@ -2,7 +2,7 @@
 
 import React from "react"
 import { useState, useEffect, useMemo } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, History, Printer, Plus, ArrowUpDown, Filter, Loader2, TrendingUp, Trash2, X } from "lucide-react"
 import { formatDate, formatNumber } from "@/lib/format-date"
+import { EditChangeDetailForm } from "@/components/spare-parts/edit-change-detail-form"
 
 interface PrinterData {
   id: string
@@ -51,6 +52,7 @@ interface ChangeData {
 
 export default function PrinterHistoryPage() {
   const params = useParams()
+  const router = useRouter()
   const id = params.id as string
   const supabase = createClient()
 
@@ -149,6 +151,12 @@ export default function PrinterHistoryPage() {
     setShowDeleteDialog(false)
   }
 
+  function handleUpdateDetail(changeId: string, newDetail: string | null) {
+    setChanges(changes.map((c) => 
+      c.id === changeId ? { ...c, detail: newDetail } : c
+    ))
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -172,10 +180,13 @@ export default function PrinterHistoryPage() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button asChild variant="ghost" size="icon" className="shrink-0">
-          <Link href={`/dashboard/printers/${id}`}>
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="shrink-0"
+          onClick={() => router.back()}
+        >
+          <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -331,7 +342,14 @@ export default function PrinterHistoryPage() {
                     </div>
                   </div>
                   
-                  {change.detail && (
+                  {!isSelectionMode && (
+                    <EditChangeDetailForm
+                      changeId={change.id}
+                      currentDetail={change.detail}
+                      onUpdate={(newDetail) => handleUpdateDetail(change.id, newDetail)}
+                    />
+                  )}
+                  {isSelectionMode && change.detail && (
                     <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border">
                       {change.detail}
                     </p>
