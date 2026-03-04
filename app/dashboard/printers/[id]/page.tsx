@@ -44,7 +44,7 @@ export default async function PrinterDetailPage({ params }: Props) {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center gap-3 sm:gap-4">
-        <BackButton />
+        <BackButton href="/dashboard/printers" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3">
             <div

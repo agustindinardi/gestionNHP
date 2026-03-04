@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Plus, Printer } from "lucide-react"
+import { PrinterCard } from "@/components/printers/printer-card"
+import { PrintersScrollRestorer } from "@/components/printers/scroll-restorer"
 
 export default async function PrintersPage() {
   const supabase = await createClient()
@@ -14,6 +16,7 @@ export default async function PrintersPage() {
 
   return (
     <div className="space-y-6">
+      <PrintersScrollRestorer />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Impresoras</h1>
@@ -32,22 +35,7 @@ export default async function PrintersPage() {
       {printers && printers.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {printers.map((printer) => (
-            <Link key={printer.id} href={`/dashboard/printers/${printer.id}`}>
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
-                <CardHeader className="pb-3">
-                  <div
-                    className="p-2 rounded-lg w-fit"
-                    style={{ backgroundColor: printer.color || "#3b82f6" }}
-                  >
-                    <Printer className="h-5 w-5 text-white" />
-                  </div>
-                  <CardTitle className="mt-3">{printer.name}</CardTitle>
-                  <CardDescription>
-                    Contador actual: {printer.counter?.toLocaleString("es-AR") ?? 0} copias
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
+            <PrinterCard key={printer.id} printer={printer} />
           ))}
         </div>
       ) : (
