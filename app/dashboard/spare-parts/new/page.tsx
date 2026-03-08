@@ -13,11 +13,14 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Loader2, Package } from "lucide-react"
+import { CategorySelector } from "@/components/spare-parts/category-selector"
 
 export default function NewSparePartPage() {
   const [code, setCode] = useState("")
   const [description, setDescription] = useState("")
   const [highRotation, setHighRotation] = useState(false)
+  const [categoryId, setCategoryId] = useState<string | null>(null)
+  const [usefulLife, setUsefulLife] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
@@ -39,6 +42,8 @@ export default function NewSparePartPage() {
       code: code.toUpperCase(),
       description,
       high_rotation: highRotation,
+      category_id: categoryId,
+      useful_life: usefulLife.trim() || null,
     })
 
     if (insertError) {
@@ -134,6 +139,27 @@ export default function NewSparePartPage() {
                   Marca este repuesto si se cambia con frecuencia
                 </p>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="category">Categoría (opcional)</Label>
+              <CategorySelector value={categoryId} onChange={setCategoryId} />
+              <p className="text-xs text-muted-foreground">
+                Agrupa el repuesto en una categoría para mejor organización
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="usefulLife">Vida útil (opcional)</Label>
+              <Input
+                id="usefulLife"
+                placeholder="Ej: 100.000 copias, 6 meses, etc."
+                value={usefulLife}
+                onChange={(e) => setUsefulLife(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Duración estimada o cantidad de copias del repuesto
+              </p>
             </div>
 
             <div className="flex gap-3 pt-4">

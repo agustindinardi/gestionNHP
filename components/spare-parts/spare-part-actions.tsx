@@ -26,12 +26,15 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Pencil, Trash2, Loader2 } from "lucide-react"
+import { CategorySelector } from "@/components/spare-parts/category-selector"
 
 interface SparePart {
   id: string
   code: string
   description: string
   high_rotation: boolean
+  category_id?: string | null
+  useful_life?: string | null
 }
 
 interface Props {
@@ -45,6 +48,8 @@ export function SparePartActions({ sparePart }: Props) {
   const [code, setCode] = useState(sparePart.code)
   const [description, setDescription] = useState(sparePart.description)
   const [highRotation, setHighRotation] = useState(sparePart.high_rotation)
+  const [categoryId, setCategoryId] = useState<string | null>(sparePart.category_id ?? null)
+  const [usefulLife, setUsefulLife] = useState(sparePart.useful_life ?? "")
   
   const router = useRouter()
   const supabase = createClient()
@@ -60,6 +65,8 @@ export function SparePartActions({ sparePart }: Props) {
         code: code.trim(),
         description: description.trim(),
         high_rotation: highRotation,
+        category_id: categoryId,
+        useful_life: usefulLife.trim() || null,
       })
       .eq("id", sparePart.id)
     
@@ -91,6 +98,8 @@ export function SparePartActions({ sparePart }: Props) {
     setCode(sparePart.code)
     setDescription(sparePart.description)
     setHighRotation(sparePart.high_rotation)
+    setCategoryId(sparePart.category_id ?? null)
+    setUsefulLife(sparePart.useful_life ?? "")
   }
 
   return (
@@ -154,6 +163,19 @@ export function SparePartActions({ sparePart }: Props) {
               <Label htmlFor="high_rotation" className="cursor-pointer">
                 Alta Rotación
               </Label>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="category">Categoría (opcional)</Label>
+              <CategorySelector value={categoryId} onChange={setCategoryId} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="usefulLife">Vida útil (opcional)</Label>
+              <Input
+                id="usefulLife"
+                value={usefulLife}
+                onChange={(e) => setUsefulLife(e.target.value)}
+                placeholder="Ej: 100.000 copias, 6 meses..."
+              />
             </div>
           </div>
           <DialogFooter>

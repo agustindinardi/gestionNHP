@@ -13,15 +13,25 @@ import {
 } from "@/components/ui/table"
 import { Plus, Package, Check } from "lucide-react"
 import { SparePartActions } from "@/components/spare-parts/spare-part-actions"
+import { CategoryManager } from "@/components/spare-parts/category-manager"
 
 export default async function SparePartsPage() {
   const supabase = await createClient()
 
-  const { data: spareParts } = await supabase
-    .from("spare_parts")
-    .select("*")
-    .order("high_rotation", { ascending: false })
-    .order("code", { ascending: true })
+  const [sparePartsRes, categoriesRes] = await Promise.all([
+    supabase
+      .from("spare_parts")
+      .select("*, spare_part_categories(name)")
+      .order("high_rotation", { ascending: false })
+      .order("code", { ascending: true }),
+    supabase
+      .from("spare_part_categories")
+      .select("*")
+      .order("name", { ascending: true })
+  ])
+
+  const spareParts = sparePartsRes.data
+  const categories = categoriesRes.data
 
   return (
     <div className="space-y-6">
@@ -32,12 +42,15 @@ export default async function SparePartsPage() {
             Gestiona el catálogo de repuestos disponibles
           </p>
         </div>
-        <Button asChild>
-          <Link href="/dashboard/spare-parts/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Repuesto
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <CategoryManager categories={categories || []} />
+          <Button asChild>
+            <Link href="/dashboard/spare-parts/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo Repuesto
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -58,8 +71,9 @@ export default async function SparePartsPage() {
                   <TableRow>
                     <TableHead>Código</TableHead>
                     <TableHead>Descripción</TableHead>
+                    <TableHead>Categoría</TableHead>
+                    <TableHead>Vida útil</TableHead>
                     <TableHead className="text-center">Alta Rotación</TableHead>
-                    <TableHead className="text-right">Fecha Registro</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -70,18 +84,25 @@ export default async function SparePartsPage() {
                         {part.code}
                       </TableCell>
                       <TableCell>{part.description}</TableCell>
-                      <TableCell className="text-center">
-                        {part.high_rotation ? (
-                          <Badge className="bg-accent text-accent-foreground">
-                            <Check className="mr-1 h-3 w-3" />
-                            Alta Rotación
-                          </Badge>
+                      <TableCell>
+                        {part.spare_part_categories?.name ? (
+                          <Badge variant="outline">{part.spare_part_categories.name}</Badge>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right text-muted-foreground">
-                        {new Date(part.created_at).toLocaleDateString("es-AR")}
+                      <TableCell>
+                        {part.useful_life || <span className="text-muted-foreground">-</span>}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {part.high_rotation ? (
+                          <Badge className="bg-accent text-accent-foreground">
+                            <Check className="mr-1 h-3 w-3" />
+                            Sí
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         <SparePartActions sparePart={part} />

@@ -338,7 +338,7 @@ export default function PrinterHistoryPage() {
                         <TrendingUp className="h-3 w-3" />
                         <span>Diferencia</span>
                       </div>
-                      <p className="font-mono font-bold text-primary text-base sm:text-lg">+{formatNumber(difference)}</p>
+                      <p className="font-mono font-bold text-foreground text-base sm:text-lg">+{formatNumber(difference)}</p>
                     </div>
                   </div>
                   
