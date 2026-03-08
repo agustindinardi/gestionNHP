@@ -109,14 +109,15 @@ export function PrinterDetailTabs({ printer, recentChanges, categoryLifeData }: 
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex items-center justify-center gap-2 py-3.5 px-4 rounded-md text-base font-medium transition-colors ${
+                className={`flex-1 flex items-center justify-center gap-1.5 py-3 px-2 rounded-md text-sm font-medium transition-colors ${
                   activeTab === tab.id
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Icon className="h-5 w-5" />
-                <span>{tab.label}</span>
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden text-xs">{tab.id === "counter" ? "Cont." : tab.id === "life" ? "Vida" : tab.id === "info" ? "Info" : "Hist."}</span>
               </button>
             )
           })}
@@ -270,10 +271,10 @@ export function PrinterDetailTabs({ printer, recentChanges, categoryLifeData }: 
                   const progressColor = getProgressColor(percentage)
                   
                   return (
-                    <div key={item.categoryId} className="p-3 bg-muted/50 rounded-lg space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold text-sm truncate">{item.categoryName}</h3>
-                        <span className={`text-base font-bold ${percentage > 25 ? "text-foreground" : "text-red-500"}`}>
+                    <div key={item.categoryId} className="p-3 bg-muted/50 rounded-lg space-y-2 overflow-hidden">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-semibold text-sm truncate flex-1 min-w-0">{item.categoryName}</h3>
+                        <span className={`text-base font-bold shrink-0 ${percentage > 25 ? "text-foreground" : "text-red-500"}`}>
                           {Math.round(percentage)}%
                         </span>
                       </div>
@@ -286,9 +287,9 @@ export function PrinterDetailTabs({ printer, recentChanges, categoryLifeData }: 
                         />
                       </div>
                       
-                      <div className="flex justify-between items-start gap-2">
-                        <p className="text-xs text-muted-foreground flex-1">{item.sparePartDescription}</p>
-                        <span className="text-xs font-medium shrink-0">{formatNumber(copiesUsed)}</span>
+                      <div className="flex flex-col gap-1">
+                        <p className="text-xs text-muted-foreground break-words">{item.sparePartDescription}</p>
+                        <span className="text-xs font-medium">{formatNumber(copiesUsed)} copias</span>
                       </div>
                     </div>
                   )
