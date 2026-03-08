@@ -460,7 +460,7 @@ export default function SettingsPage() {
         <CardContent className="space-y-3">
           <div className="flex justify-between py-2 border-b border-border">
             <span className="text-sm text-muted-foreground">Versión</span>
-            <span className="text-sm font-medium">1.0.0</span>
+            <span className="text-sm font-medium">1.1.12</span>
           </div>
           <div className="flex justify-between py-2 border-b border-border">
             <span className="text-sm text-muted-foreground">Formato de fecha</span>

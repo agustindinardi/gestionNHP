@@ -86,6 +86,7 @@ export default async function PrinterDetailPage({ params }: Props) {
   }
 
   const categoryLifeData = Array.from(categoryLifeMap.values())
+    .sort((a, b) => a.categoryName.localeCompare(b.categoryName))
 
   return (
     <div className="space-y-4">
