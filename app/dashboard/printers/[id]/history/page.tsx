@@ -26,9 +26,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, History, Printer, Plus, ArrowUpDown, Filter, Loader2, TrendingUp, Trash2, X } from "lucide-react"
+import { ArrowLeft, History, Printer, Plus, ArrowUpDown, Filter, Loader2, TrendingUp, Trash2, X, Search } from "lucide-react"
 import { formatDate, formatNumber } from "@/lib/format-date"
 import { EditChangeDetailForm } from "@/components/spare-parts/edit-change-detail-form"
+import { Input } from "@/components/ui/input"
 
 interface PrinterData {
   id: string
@@ -61,6 +62,8 @@ export default function PrinterHistoryPage() {
   const [loading, setLoading] = useState(true)
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc")
   const [filterHighRotation, setFilterHighRotation] = useState<"all" | "high" | "normal">("all")
+  const [searchInputValue, setSearchInputValue] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedChanges, setSelectedChanges] = useState<Set<string>>(new Set())
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -84,8 +87,27 @@ export default function PrinterHistoryPage() {
     loadData()
   }, [id, supabase])
 
+  // Debounce para la búsqueda
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(searchInputValue)
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [searchInputValue])
+
   const processedChanges = useMemo(() => {
     let result = [...changes]
+
+    // Filtrar por búsqueda (nombre o código)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim()
+      result = result.filter((c) => {
+        const code = c.spare_parts?.code?.toLowerCase() || ""
+        const description = c.spare_parts?.description?.toLowerCase() || ""
+        return code.includes(query) || description.includes(query)
+      })
+    }
 
     if (filterHighRotation === "high") {
       result = result.filter((c) => c.spare_parts?.high_rotation)
@@ -101,7 +123,7 @@ export default function PrinterHistoryPage() {
     })
 
     return result
-  }, [changes, sortOrder, filterHighRotation])
+  }, [changes, sortOrder, filterHighRotation, searchQuery])
 
   function calculateDifference(changeCounter: number): number {
     if (!printer) return 0
@@ -213,7 +235,16 @@ export default function PrinterHistoryPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap items-center">
+        <div className="relative flex-1 sm:flex-none sm:w-[200px]">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Buscar por nombre o código..."
+            value={searchInputValue}
+            onChange={(e) => setSearchInputValue(e.target.value)}
+            className="h-9 pl-8 text-sm"
+          />
+        </div>
         <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as "desc" | "asc")}>
           <SelectTrigger className="flex-1 sm:w-[140px] sm:flex-none h-9 text-sm">
             <ArrowUpDown className="mr-1 h-3 w-3" />
