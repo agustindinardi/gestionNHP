@@ -1,8 +1,8 @@
 import { updateSession } from '@/lib/supabase/proxy'
 import { type NextRequest, NextResponse } from 'next/server'
 
-// Rate limiting: 100 solicitudes por 15 minutos por IP
-const RATE_LIMIT_REQUESTS = 200
+// Rate limiting: 500 solicitudes por 15 minutos por IP
+const RATE_LIMIT_REQUESTS = 500
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000 // 15 minutos en ms
 
 // Mapa para rastrear solicitudes por IP
