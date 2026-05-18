@@ -42,18 +42,29 @@ export function Sidebar() {
 
   const SidebarContent = () => (
     <>
-      <div className="flex items-center gap-3 px-4 py-6 border-b border-sidebar-border">
-        <Image
-          src="/Adobe Express - file.png"
-          alt="NHP Logo"
-          width={40}
-          height={40}
-          className="rounded-full"
-        />
-        <div>
-          <h1 className="font-bold text-sidebar-foreground">NHP</h1>
-          <p className="text-xs text-sidebar-foreground/60">Gestión de impresoras</p>
+      <div className="flex items-center justify-between gap-3 px-4 py-6 border-b border-sidebar-border lg:justify-start">
+        <div className="flex items-center gap-3 flex-1">
+          <Image
+            src="/Adobe Express - file.png"
+            alt="NHP Logo"
+            width={40}
+            height={40}
+            className="rounded-full"
+          />
+          <div>
+            <h1 className="font-bold text-sidebar-foreground">NHP</h1>
+            <p className="text-xs text-sidebar-foreground/60">Gestión de impresoras</p>
+          </div>
         </div>
+        {/* Close button para mobile */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        >
+          <X className="h-5 w-5" />
+        </Button>
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1">
@@ -94,16 +105,6 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile menu button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="fixed top-4 left-4 z-50 lg:hidden"
-        onClick={() => setMobileOpen(!mobileOpen)}
-      >
-        {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-      </Button>
-
       {/* Mobile sidebar overlay */}
       {mobileOpen && (
         <div
@@ -115,7 +116,7 @@ export function Sidebar() {
       {/* Mobile sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-64 bg-sidebar flex flex-col transition-transform lg:hidden",
+          "fixed inset-y-0 left-0 z-50 w-64 bg-sidebar flex flex-col transition-transform lg:hidden",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -126,6 +127,18 @@ export function Sidebar() {
       <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-sidebar border-r border-sidebar-border">
         <SidebarContent />
       </aside>
+
+      {/* Mobile menu button - integrado en un header sticky */}
+      <div className="lg:hidden sticky top-0 z-40 bg-background border-b border-border p-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="text-foreground"
+        >
+          {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </Button>
+      </div>
     </>
   )
 }
