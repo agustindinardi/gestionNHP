@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Printer, Package, History, TrendingUp } from "lucide-react"
+import { Printer, Package, History, TrendingUp, ClipboardList } from "lucide-react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { formatDate } from "@/lib/format-date"
+import { getArgentinaTodayYmd } from "@/lib/argentina-time"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -15,15 +16,21 @@ export default async function DashboardPage() {
     redirect("/auth/login")
   }
   
-  const [printersResult, sparePartsResult, changesResult] = await Promise.all([
+  const [printersResult, sparePartsResult, changesResult, tasksResult] = await Promise.all([
     supabase.from("printers").select("*", { count: "exact" }),
     supabase.from("spare_parts").select("*", { count: "exact" }),
     supabase.from("spare_part_changes").select("*", { count: "exact" }),
+    supabase
+      .from("tasks")
+      .select("*", { count: "exact" })
+      .eq("due_date", getArgentinaTodayYmd())
+      .is("completed_at", null),
   ])
 
   const printerCount = printersResult.count ?? 0
   const sparePartsCount = sparePartsResult.count ?? 0
   const changesCount = changesResult.count ?? 0
+  const tasksCount = tasksResult.count ?? 0
 
   // Get recent changes
   const { data: recentChanges } = await supabase
@@ -61,6 +68,14 @@ export default async function DashboardPage() {
       href: "/dashboard/add-change",
       color: "bg-chart-3",
     },
+    {
+      title: "Tareas Hoy",
+      value: tasksCount,
+      description: "Pendientes",
+      icon: ClipboardList,
+      href: "/dashboard/tasks",
+      color: "bg-blue-500",
+    },
   ]
 
   return (
@@ -72,7 +87,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <Link key={stat.title} href={stat.href}>
             <Card className="hover:shadow-lg transition-shadow cursor-pointer">

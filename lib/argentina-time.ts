@@ -59,6 +59,15 @@ export function formatArgentinaDayLabelShort(ymd: string) {
   return capitalize(label)
 }
 
+export function formatArgentinaDayLabelMobileCompact(ymd: string) {
+  const formatter = new Intl.DateTimeFormat(AR_LOCALE, {
+    timeZone: AR_TIME_ZONE,
+    weekday: "short",
+  })
+  const label = formatter.format(dateForYmd(ymd))
+  return capitalize(label)
+}
+
 export function formatArgentinaMonthLabel(ymd: string) {
   const formatter = new Intl.DateTimeFormat(AR_LOCALE, {
     timeZone: AR_TIME_ZONE,

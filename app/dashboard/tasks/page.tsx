@@ -8,6 +8,7 @@ import {
   addDaysToYmd,
   formatArgentinaDayLabel,
   formatArgentinaDayLabelShort,
+  formatArgentinaDayLabelMobileCompact,
   formatArgentinaFullDate,
   formatArgentinaMonthLabel,
   formatArgentinaTimeValue,
@@ -44,7 +45,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ClipboardList, History, Loader2, Check, Trash2, Pencil, ChevronLeft, ChevronRight, Plus } from "lucide-react"
+import { ClipboardList, History, Loader2, Check, Trash2, Pencil, ChevronLeft, ChevronRight, Plus, ArrowRight } from "lucide-react"
 
 interface PrinterOption {
   id: string
@@ -193,6 +194,7 @@ export default function TasksPage() {
   const [editPriority, setEditPriority] = useState<"baja" | "media" | "alta">("media")
   const [editPrinterId, setEditPrinterId] = useState<string | null>(null)
   const [deletingTask, setDeletingTask] = useState<TaskRow | null>(null)
+  const [movingTask, setMovingTask] = useState<TaskRow | null>(null)
 
   const visibleDayList = useMemo(() => {
     return Array.from({ length: 5 }, (_, index) =>
@@ -376,6 +378,28 @@ export default function TasksPage() {
     setTasks((prev) => prev.filter((task) => task.id !== deletingTask.id))
   }
 
+  async function handleMoveTaskToNextDay() {
+    if (!movingTask) return
+
+    const nextDay = addDaysToYmd(movingTask.due_date, 1)
+
+    const { error: updateError } = await supabase
+      .from("tasks")
+      .update({ due_date: nextDay })
+      .eq("id", movingTask.id)
+
+    if (updateError) {
+      setError(updateError.message)
+      setMovingTask(null)
+      return
+    }
+
+    setMovingTask(null)
+    setTasks((prev) => prev.filter((task) => task.id !== movingTask.id))
+    setSuccess(`Tarea movida al ${formatArgentinaDayLabel(nextDay)}`)
+    setTimeout(() => setSuccess(null), 3000)
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-2 sm:gap-3 sm:flex-row sm:items-center sm:justify-between px-0">
@@ -408,22 +432,22 @@ export default function TasksPage() {
         </div>
       </div>
 
-      <Card className="p-3 sm:p-6">
-        <CardHeader className="p-0 mb-3 sm:p-6 sm:mb-0">
+      <Card className="p-2 sm:p-6">
+        <CardHeader className="p-0 mb-2 sm:p-6 sm:mb-0">
           <CardTitle className="text-center text-lg sm:text-xl font-bold">
             {formatArgentinaMonthLabel(selectedDate)}
           </CardTitle>
-          <CardDescription className="text-center text-xs sm:text-sm">
+          <CardDescription className="text-center text-sm sm:text-base">
             {formatArgentinaFullDate(selectedDate)}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1 sm:gap-4">
             {/* Left arrow button */}
             <Button
               variant="outline"
               size="icon"
-              className="h-9 w-9 flex-shrink-0 sm:h-10 sm:w-10"
+              className="h-8 w-8 flex-shrink-0 sm:h-10 sm:w-10"
               onClick={() => setSelectedDate(addDaysToYmd(selectedDate, -1))}
               title="Día anterior"
             >
@@ -431,7 +455,7 @@ export default function TasksPage() {
             </Button>
 
             {/* Days container */}
-            <div className="flex flex-1 gap-1 sm:gap-2 overflow-hidden">
+            <div className="flex flex-1 gap-0.5 sm:gap-2 overflow-hidden">
               {visibleDayList.map((day) => {
                 const isSelected = day === selectedDate
                 const isToday = day === getArgentinaTodayYmd()
@@ -440,7 +464,7 @@ export default function TasksPage() {
                     key={day}
                     type="button"
                     className={cn(
-                      "flex-1 min-w-0 rounded-lg border px-1 py-2 sm:px-2 sm:py-3 text-center text-xs sm:text-sm font-medium transition-all duration-300",
+                      "flex-1 min-w-0 rounded-md border px-0.5 py-1 sm:px-2 sm:py-3 text-center text-xs sm:text-sm font-medium transition-all duration-300",
                       isSelected
                         ? "border-primary bg-primary/15 text-primary shadow-sm"
                         : "border-border hover:bg-muted"
@@ -448,7 +472,7 @@ export default function TasksPage() {
                     onClick={() => setSelectedDate(day)}
                   >
                     <div className="truncate">
-                      <span className="sm:hidden">{formatArgentinaDayLabelShort(day)}</span>
+                      <span className="sm:hidden">{formatArgentinaDayLabelMobileCompact(day)}</span>
                       <span className="hidden sm:inline">{formatArgentinaDayLabel(day)}</span>
                     </div>
                     {isToday && (
@@ -463,7 +487,7 @@ export default function TasksPage() {
             <Button
               variant="outline"
               size="icon"
-              className="h-9 w-9 flex-shrink-0 sm:h-10 sm:w-10"
+              className="h-8 w-8 flex-shrink-0 sm:h-10 sm:w-10"
               onClick={() => setSelectedDate(addDaysToYmd(selectedDate, 1))}
               title="Día siguiente"
             >
@@ -476,7 +500,7 @@ export default function TasksPage() {
       <Card>
         <CardHeader className="pb-3 sm:pb-6">
           <CardTitle className="text-lg sm:text-xl">Tareas del dia</CardTitle>
-          <CardDescription className="text-xs sm:text-sm">{formatArgentinaDayLabel(selectedDate)}</CardDescription>
+          <CardDescription className="text-sm sm:text-base">{formatArgentinaDayLabel(selectedDate)}</CardDescription>
         </CardHeader>
         <CardContent className="p-3 sm:p-6">
           {loading ? (
@@ -484,7 +508,7 @@ export default function TasksPage() {
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : tasks.length === 0 ? (
-            <div className="rounded-md border border-dashed p-4 sm:p-6 text-center text-xs sm:text-sm text-muted-foreground">
+            <div className="rounded-md border border-dashed p-4 sm:p-6 text-center text-sm sm:text-base text-muted-foreground">
               No hay tareas para este dia
             </div>
           ) : (
@@ -495,7 +519,7 @@ export default function TasksPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-sm sm:text-lg font-semibold truncate">{task.title}</h3>
+                          <h3 className="text-base sm:text-lg font-semibold truncate">{task.title}</h3>
                           <div
                             className={cn(
                               "rounded-full px-2 py-0.5 text-xs font-semibold text-white flex-shrink-0",
@@ -513,7 +537,7 @@ export default function TasksPage() {
                                 : "Alta"}
                           </div>
                         </div>
-                        <div className="mt-1 text-xs sm:text-sm text-muted-foreground">
+                        <div className="mt-1 text-sm sm:text-base text-muted-foreground">
                           {formatArgentinaTimeValue(task.due_time)} • {task.printers?.name || "-"}
                         </div>
                       </div>
@@ -536,6 +560,16 @@ export default function TasksPage() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950 sm:w-auto sm:px-2"
+                          onClick={() => setMovingTask(task)}
+                          title="Mover al siguiente día"
+                        >
+                          <ArrowRight className="h-4 w-4" />
+                          <span className="hidden sm:inline ml-2">Mover</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="h-8 w-8 p-0 text-destructive hover:text-destructive sm:w-auto sm:px-2"
                           onClick={() => setDeletingTask(task)}
                         >
@@ -546,18 +580,18 @@ export default function TasksPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs sm:text-sm">Quien la hizo</Label>
+                      <Label className="text-sm sm:text-base">Quien la hizo</Label>
                       <div className="flex gap-2">
                         <Select
                           value={completionBy[task.id] || ""}
                           onValueChange={(value) =>
                             setCompletionBy((prev) => ({
                               ...prev,
-                              [task.id]: value as TaskRow["completed_by"],
+                              [task.id]: value as "M" | "A" | "V",
                             }))
                           }
                         >
-                          <SelectTrigger className="w-24 h-9 sm:h-10 sm:w-auto text-xs sm:text-sm">
+                          <SelectTrigger className="w-20 h-9 sm:h-10 sm:w-auto text-xs sm:text-sm">
                             <SelectValue placeholder="Select" />
                           </SelectTrigger>
                           <SelectContent>
@@ -570,11 +604,11 @@ export default function TasksPage() {
                         </Select>
                         <Button
                           size="sm"
-                          className="flex-1 h-9 sm:h-10 text-xs sm:text-sm"
+                          className="flex-1 h-10 sm:h-10 text-sm sm:text-base"
                           disabled={!completionBy[task.id]}
                           onClick={() => handleFinishTask(task)}
                         >
-                          <Check className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                          <Check className="h-4 w-4 sm:h-4 sm:w-4 mr-1" />
                           Completar
                         </Button>
                       </div>
@@ -721,6 +755,30 @@ export default function TasksPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!movingTask} onOpenChange={(open) => !open && setMovingTask(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mover tarea al siguiente día</AlertDialogTitle>
+            <AlertDialogDescription>
+              {movingTask && (
+                <>
+                  La tarea "{movingTask.title}" se movera a {formatArgentinaDayLabel(addDaysToYmd(movingTask.due_date, 1))} con toda la misma información.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setMovingTask(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-green-600 text-white hover:bg-green-700"
+              onClick={handleMoveTaskToNextDay}
+            >
+              Mover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!deletingTask} onOpenChange={(open) => !open && setDeletingTask(null)}>
         <AlertDialogContent>
