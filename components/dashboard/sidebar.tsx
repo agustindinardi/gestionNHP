@@ -10,6 +10,7 @@ import {
   Package,
   History,
   LayoutDashboard,
+  ClipboardList,
   LogOut,
   Menu,
   X,
@@ -23,6 +24,7 @@ const navigation = [
   { name: "Impresoras", href: "/dashboard/printers", icon: Printer },
   { name: "Repuestos", href: "/dashboard/spare-parts", icon: Package },
   { name: "Agregar Cambio", href: "/dashboard/add-change", icon: History },
+  { name: "Tareas", href: "/dashboard/tasks", icon: ClipboardList },
   { name: "Configuración", href: "/dashboard/settings", icon: Settings },
 ]
 
