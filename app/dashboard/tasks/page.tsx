@@ -624,49 +624,51 @@ export default function TasksPage() {
       </Card>
 
       <Dialog open={!!editingTask} onOpenChange={(open) => !open && setEditingTask(null)}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="flex flex-col max-h-[90vh] p-0 overflow-hidden">
+          <DialogHeader className="p-4 sm:p-6">
             <DialogTitle>Editar tarea</DialogTitle>
             <DialogDescription>Actualiza los datos de la tarea</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Titulo</Label>
-              <Input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} />
+          <ScrollArea className="flex-1 px-4 sm:px-6">
+            <div className="space-y-4 pb-4">
+              <div className="space-y-2">
+                <Label>Titulo</Label>
+                <Input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Hora</Label>
+                <Input type="time" value={editTime} onChange={(event) => setEditTime(event.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Prioridad</Label>
+                <Select
+                  value={editPriority}
+                  onValueChange={(value) => setEditPriority(value as TaskRow["priority"])}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecciona prioridad" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {priorityOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Maquina</Label>
+                <PrinterAutocomplete
+                  printers={printers}
+                  value={editPrinterId}
+                  onChange={setEditPrinterId}
+                  placeholder="Escribe el nombre de la impresora"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Hora</Label>
-              <Input type="time" value={editTime} onChange={(event) => setEditTime(event.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Prioridad</Label>
-              <Select
-                value={editPriority}
-                onValueChange={(value) => setEditPriority(value as TaskRow["priority"])}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecciona prioridad" />
-                </SelectTrigger>
-                <SelectContent>
-                  {priorityOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Maquina</Label>
-              <PrinterAutocomplete
-                printers={printers}
-                value={editPrinterId}
-                onChange={setEditPrinterId}
-                placeholder="Escribe el nombre de la impresora"
-              />
-            </div>
-          </div>
-          <DialogFooter>
+          </ScrollArea>
+          <DialogFooter className="p-4 sm:p-6 border-t">
             <Button variant="outline" onClick={() => setEditingTask(null)}>
               Cancelar
             </Button>
@@ -686,7 +688,7 @@ export default function TasksPage() {
         }
         setShowCreateDialog(open)
       }}>
-        <DialogContent className="flex flex-col max-h-[90vh] p-0">
+        <DialogContent className="flex flex-col max-h-[90vh] p-0 overflow-hidden">
           <DialogHeader className="p-4 sm:p-6">
             <DialogTitle>Nueva tarea</DialogTitle>
             <DialogDescription>Completa los datos para agregar una tarea</DialogDescription>

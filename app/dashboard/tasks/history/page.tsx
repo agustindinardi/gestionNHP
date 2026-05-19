@@ -149,7 +149,7 @@ export default function TasksHistoryPage() {
                       <TableHead className="text-xs sm:text-sm">Completada</TableHead>
                       <TableHead className="text-xs sm:text-sm">Maquina</TableHead>
                       <TableHead className="text-xs sm:text-sm">Prioridad</TableHead>
-                      <TableHead className="text-xs sm:text-sm">Quien</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Técnico</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -216,7 +216,7 @@ export default function TasksHistoryPage() {
                         <span className="font-medium">Máquina:</span> {task.printers?.name || "-"}
                       </div>
                       <div>
-                        <span className="font-medium">Quién:</span> {task.completed_by || "-"}
+                        <span className="font-medium">Técnico:</span> {task.completed_by || "-"}
                       </div>
                     </div>
                   </div>
