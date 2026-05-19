@@ -314,7 +314,7 @@ export default function TasksPage() {
   async function handleFinishTask(task: TaskRow) {
     const who = completionBy[task.id]
     if (!who) {
-      setError("Selecciona quien la hizo antes de completar")
+      setError("Selecciona el tecnico antes de completar")
       return
     }
 
@@ -518,11 +518,13 @@ export default function TasksPage() {
                   <div className="flex flex-col gap-2 sm:gap-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-base sm:text-lg font-semibold truncate">{task.title}</h3>
+                        <div className="space-y-1">
+                          <h3 className="text-base sm:text-lg font-semibold">
+                            {task.printers?.name ? `${task.printers.name} - ${task.title}` : task.title}
+                          </h3>
                           <div
                             className={cn(
-                              "rounded-full px-2 py-0.5 text-xs font-semibold text-white flex-shrink-0",
+                              "rounded-full px-2 py-0.5 text-xs font-semibold text-white inline-block",
                               task.priority === "baja"
                                 ? "bg-yellow-500"
                                 : task.priority === "media"
@@ -580,7 +582,7 @@ export default function TasksPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm sm:text-base">Quien la hizo</Label>
+                      <Label className="text-sm sm:text-base">Tecnico</Label>
                       <div className="flex gap-2">
                         <Select
                           value={completionBy[task.id] || ""}
@@ -684,75 +686,77 @@ export default function TasksPage() {
         }
         setShowCreateDialog(open)
       }}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="flex flex-col max-h-[90vh] p-0">
+          <DialogHeader className="p-4 sm:p-6">
             <DialogTitle>Nueva tarea</DialogTitle>
             <DialogDescription>Completa los datos para agregar una tarea</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleCreateTask} className="space-y-4">
-            {error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
+          <ScrollArea className="flex-1 px-4 sm:px-6">
+            <form onSubmit={handleCreateTask} className="space-y-4 pb-4">
+              {error && (
+                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
+              {success && (
+                <div className="rounded-md bg-green-100 p-3 text-sm text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                  {success}
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label>Fecha</Label>
+                <Input
+                  type="date"
+                  value={createDate}
+                  onChange={(event) => setCreateDate(event.target.value)}
+                />
               </div>
-            )}
-            {success && (
-              <div className="rounded-md bg-green-100 p-3 text-sm text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                {success}
+              <div className="space-y-2">
+                <Label>Titulo</Label>
+                <Input value={title} onChange={(event) => setTitle(event.target.value)} />
               </div>
-            )}
-            <div className="space-y-2">
-              <Label>Fecha</Label>
-              <Input
-                type="date"
-                value={createDate}
-                onChange={(event) => setCreateDate(event.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Titulo</Label>
-              <Input value={title} onChange={(event) => setTitle(event.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Hora</Label>
-              <Input type="time" value={time} onChange={(event) => setTime(event.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Prioridad</Label>
-              <Select value={priority} onValueChange={(value) => setPriority(value as TaskRow["priority"])}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecciona prioridad" />
-                </SelectTrigger>
-                <SelectContent>
-                  {priorityOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Maquina (opcional)</Label>
-              <PrinterAutocomplete
-                printers={printers}
-                value={printerId}
-                onChange={setPrinterId}
-                placeholder="Escribe el nombre de la impresora"
-              />
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowCreateDialog(false)}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Agregar tarea"}
-              </Button>
-            </DialogFooter>
-          </form>
+              <div className="space-y-2">
+                <Label>Hora</Label>
+                <Input type="time" value={time} onChange={(event) => setTime(event.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Prioridad</Label>
+                <Select value={priority} onValueChange={(value) => setPriority(value as TaskRow["priority"])}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecciona prioridad" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {priorityOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Maquina (opcional)</Label>
+                <PrinterAutocomplete
+                  printers={printers}
+                  value={printerId}
+                  onChange={setPrinterId}
+                  placeholder="Escribe el nombre de la impresora"
+                />
+              </div>
+            </form>
+          </ScrollArea>
+          <DialogFooter className="p-4 sm:p-6 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowCreateDialog(false)}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={submitting} onClick={handleCreateTask}>
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Agregar tarea"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
