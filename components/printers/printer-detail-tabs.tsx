@@ -8,6 +8,7 @@ import { Hash, Calendar, History, Plus, Settings, HeartPulse } from "lucide-reac
 import { UpdateCounterForm } from "@/components/printers/update-counter-form"
 import { EditPrinterNameForm } from "@/components/printers/edit-printer-name-form"
 import { EditPrinterSerialForm } from "@/components/printers/edit-printer-serial-form"
+import { EditPrinterModelForm } from "@/components/printers/edit-printer-model-form"
 import { EditPrinterColorForm } from "@/components/printers/edit-printer-color-form"
 import { DeletePrinterButton } from "@/components/printers/delete-printer-button"
 import { formatDate, formatNumber } from "@/lib/format-date"
@@ -20,6 +21,7 @@ interface PrinterData {
   counter: number | null
   color: string | null
   serial_number: string | null
+  model: string | null
   created_at: string
   updated_at: string
 }
@@ -159,6 +161,7 @@ export function PrinterDetailTabs({ printer, recentChanges, categoryLifeData }: 
           </CardHeader>
           <CardContent className="space-y-3">
             <EditPrinterNameForm printerId={printer.id} currentName={printer.name} />
+            <EditPrinterModelForm printerId={printer.id} currentModel={printer.model} />
             <EditPrinterSerialForm printerId={printer.id} currentSerialNumber={printer.serial_number} />
             <div className="flex justify-between py-2 border-b border-border">
               <span className="text-sm text-muted-foreground">Fecha de registro</span>

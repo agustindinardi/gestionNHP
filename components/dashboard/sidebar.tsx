@@ -15,6 +15,8 @@ import {
   Menu,
   X,
   Settings,
+  RefreshCw,
+  BookOpen,
 } from "lucide-react"
 import { useState } from "react"
 import Image from "next/image"
@@ -24,6 +26,8 @@ const navigation = [
   { name: "Impresoras", href: "/dashboard/printers", icon: Printer },
   { name: "Repuestos", href: "/dashboard/spare-parts", icon: Package },
   { name: "Agregar Cambio", href: "/dashboard/add-change", icon: History },
+  { name: "Actualizar contadores", href: "/dashboard/update-counters", icon: RefreshCw },
+  { name: "Manuales", href: "/dashboard/manuals", icon: BookOpen },
   { name: "Tareas", href: "/dashboard/tasks", icon: ClipboardList },
   { name: "Configuración", href: "/dashboard/settings", icon: Settings },
 ]

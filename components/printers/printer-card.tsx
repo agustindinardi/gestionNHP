@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Printer } from "lucide-react"
 import { saveScrollPosition } from "./scroll-restorer"
+import { formatDate } from "@/lib/format-date"
 
 interface Props {
   printer: {
@@ -11,6 +12,7 @@ interface Props {
     name: string
     counter: number | null
     color: string | null
+    updated_at: string | null
   }
 }
 
@@ -32,6 +34,11 @@ export function PrinterCard({ printer }: Props) {
           <CardDescription>
             Contador actual: {printer.counter?.toLocaleString("es-AR") ?? 0} copias
           </CardDescription>
+          {printer.updated_at && (
+            <CardDescription>
+              Última actualización: {formatDate(printer.updated_at)}
+            </CardDescription>
+          )}
         </CardHeader>
       </Card>
     </Link>

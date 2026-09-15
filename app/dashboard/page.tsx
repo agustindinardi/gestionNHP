@@ -41,7 +41,7 @@ export default async function DashboardPage() {
       spare_parts (code, description)
     `)
     .order("change_date", { ascending: false })
-    .limit(5)
+    .limit(15)
 
   const stats = [
     {

@@ -45,7 +45,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ClipboardList, History, Loader2, Check, Trash2, Pencil, ChevronLeft, ChevronRight, Plus, ArrowRight } from "lucide-react"
+import { ClipboardList, History, Loader2, Check, Trash2, Pencil, ChevronLeft, ChevronRight, Plus, ArrowRight, Printer } from "lucide-react"
 
 interface PrinterOption {
   id: string
@@ -130,8 +130,8 @@ function PrinterAutocomplete({
         onFocus={() => setOpen(true)}
       />
       {open && (
-        <div className="absolute z-30 mt-1 w-full rounded-md border bg-popover shadow-md">
-          <div className="max-h-60 overflow-y-auto">
+        <div className="mt-1 w-full rounded-md border bg-popover shadow-md">
+          <div className="max-h-48 overflow-y-auto">
             <button
               type="button"
               className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
@@ -181,7 +181,7 @@ export default function TasksPage() {
   const [success, setSuccess] = useState<string | null>(null)
 
   const [title, setTitle] = useState("")
-  const [time, setTime] = useState("")
+  const [time, setTime] = useState("08:00")
   const [priority, setPriority] = useState<"baja" | "media" | "alta">("media")
   const [printerId, setPrinterId] = useState<string | null>(null)
 
@@ -286,7 +286,7 @@ export default function TasksPage() {
     }
 
     setTitle("")
-    setTime("")
+    setTime("08:00")
     setPriority("media")
     setPrinterId(null)
     setSuccess("Tarea creada")
@@ -413,7 +413,7 @@ export default function TasksPage() {
           <Button onClick={() => {
             setCreateDate(selectedDate)
             setTitle("")
-            setTime("")
+            setTime("08:00")
             setPriority("media")
             setPrinterId(null)
             setError(null)
@@ -520,7 +520,20 @@ export default function TasksPage() {
                       <div className="flex-1 min-w-0">
                         <div className="space-y-1">
                           <h3 className="text-base sm:text-lg font-semibold">
-                            {task.printers?.name ? `${task.printers.name} - ${task.title}` : task.title}
+                            {task.printers?.name && task.printer_id ? (
+                              <>
+                                <Link
+                                  href={`/dashboard/printers/${task.printer_id}`}
+                                  className="inline-flex items-center gap-1 text-primary hover:underline"
+                                >
+                                  <Printer className="h-4 w-4 shrink-0" />
+                                  {task.printers.name}
+                                </Link>
+                                {` - ${task.title}`}
+                              </>
+                            ) : (
+                              task.title
+                            )}
                           </h3>
                           <div
                             className={cn(
@@ -680,7 +693,7 @@ export default function TasksPage() {
       <Dialog open={showCreateDialog} onOpenChange={(open) => {
         if (!open) {
           setTitle("")
-          setTime("")
+          setTime("08:00")
           setPriority("media")
           setPrinterId(null)
           setError(null)
