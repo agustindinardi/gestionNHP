@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Printer, Package, History, TrendingUp, ClipboardList } from "lucide-react"
+import { Printer, Package, History, TrendingUp, ClipboardList, RefreshCw, BookOpen } from "lucide-react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { formatDate } from "@/lib/format-date"
@@ -43,35 +43,45 @@ export default async function DashboardPage() {
     .order("change_date", { ascending: false })
     .limit(15)
 
-  const stats = [
+  const sections = [
     {
       title: "Impresoras",
-      value: printerCount,
-      description: "Total registradas",
+      subtitle: `${printerCount} registradas`,
       icon: Printer,
       href: "/dashboard/printers",
       color: "bg-primary",
     },
     {
       title: "Repuestos",
-      value: sparePartsCount,
-      description: "En inventario",
+      subtitle: `${sparePartsCount} en stock`,
       icon: Package,
       href: "/dashboard/spare-parts",
       color: "bg-accent",
     },
     {
-      title: "Cambios",
-      value: changesCount,
-      description: "Historial total",
+      title: "Agregar Cambio",
+      subtitle: `${changesCount} en historial`,
       icon: History,
       href: "/dashboard/add-change",
       color: "bg-chart-3",
     },
     {
-      title: "Tareas Hoy",
-      value: tasksCount,
-      description: "Pendientes",
+      title: "Actualizar contadores",
+      subtitle: "Cargar valores",
+      icon: RefreshCw,
+      href: "/dashboard/update-counters",
+      color: "bg-cyan-600",
+    },
+    {
+      title: "Manuales",
+      subtitle: "Códigos y errores",
+      icon: BookOpen,
+      href: "/dashboard/manuals",
+      color: "bg-purple-600",
+    },
+    {
+      title: "Tareas",
+      subtitle: `${tasksCount} para hoy`,
       icon: ClipboardList,
       href: "/dashboard/tasks",
       color: "bg-blue-500",
@@ -79,31 +89,24 @@ export default async function DashboardPage() {
   ]
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">
-          Bienvenido al sistema de gestión de impresoras
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-1">
+          Elegí un apartado
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Link key={stat.title} href={stat.href}>
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {stat.title}
-                </CardTitle>
-                <div className={`p-2 rounded-lg ${stat.color}`}>
-                  <stat.icon className="h-4 w-4 text-primary-foreground" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {sections.map((section) => (
+          <Link key={section.title} href={section.href}>
+            <Card className="h-full hover:shadow-md hover:border-primary/40 active:scale-[0.97] transition-all cursor-pointer">
+              <CardContent className="flex flex-col items-center justify-center gap-2 p-4 text-center min-h-[120px]">
+                <div className={`p-3 rounded-2xl ${section.color}`}>
+                  <section.icon className="h-6 w-6 text-white" />
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stat.value}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stat.description}
-                </p>
+                <span className="font-semibold text-sm leading-tight">{section.title}</span>
+                <span className="text-xs text-muted-foreground">{section.subtitle}</span>
               </CardContent>
             </Card>
           </Link>
