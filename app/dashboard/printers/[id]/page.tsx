@@ -12,46 +12,42 @@ export default async function PrinterDetailPage({ params }: Props) {
   const { id } = await params
   const supabase = await createClient()
 
-  const { data: printer } = await supabase
-    .from("printers")
-    .select("*")
-    .eq("id", id)
-    .single()
+  // Antes había 3 queries en serie: printer -> recentChanges(limit 5) ->
+  // allChangesWithCategory. Las dos de spare_part_changes pegaban a la misma
+  // tabla/filtro y recentChanges era un subconjunto de la otra. Ahora:
+  //   1) una sola query de cambios (superset de columnas) reemplaza a las dos.
+  //   2) corre en paralelo con la de printer (Promise.all), sin waterfall.
+  const [printerResult, changesResult] = await Promise.all([
+    supabase.from("printers").select("*").eq("id", id).single(),
+    supabase
+      .from("spare_part_changes")
+      .select(`
+        *,
+        spare_parts (
+          id,
+          code,
+          description,
+          high_rotation,
+          useful_life,
+          category_id,
+          spare_part_categories (
+            id,
+            name
+          )
+        )
+      `)
+      .eq("printer_id", id)
+      .order("change_date", { ascending: false }),
+  ])
 
+  const printer = printerResult.data
   if (!printer) {
     notFound()
   }
 
-  // Get recent changes for this printer
-  const { data: recentChanges } = await supabase
-    .from("spare_part_changes")
-    .select(`
-      *,
-      spare_parts (code, description, high_rotation)
-    `)
-    .eq("printer_id", id)
-    .order("change_date", { ascending: false })
-    .limit(5)
-
-  // Get all changes with category and useful_life info for this printer
-  const { data: allChangesWithCategory } = await supabase
-    .from("spare_part_changes")
-    .select(`
-      *,
-      spare_parts (
-        id,
-        code,
-        description,
-        useful_life,
-        category_id,
-        spare_part_categories (
-          id,
-          name
-        )
-      )
-    `)
-    .eq("printer_id", id)
-    .order("change_date", { ascending: false })
+  const allChangesWithCategory = changesResult.data
+  // Los 5 más recientes salen del mismo resultado ya ordenado desc, sin otra query.
+  const recentChanges = allChangesWithCategory ? allChangesWithCategory.slice(0, 5) : null
 
   // Process to get latest change per category with useful_life
   const categoryLifeMap = new Map<string, {

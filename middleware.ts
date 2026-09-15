@@ -5,8 +5,28 @@ import { type NextRequest, NextResponse } from 'next/server'
 const RATE_LIMIT_REQUESTS = 500
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000 // 15 minutos en ms
 
-// Mapa para rastrear solicitudes por IP
+// Mapa para rastrear solicitudes por IP.
+// NOTA: es estado en memoria del proceso. En un deploy serverless (p. ej. Vercel)
+// no se comparte entre instancias, así que el rate limit es aproximado por instancia.
+// Para un límite global y persistente habría que usar un store con TTL (Upstash
+// Redis / @vercel/kv). Para este caso alcanza; lo único que arreglamos acá es que
+// el Map no crezca indefinidamente.
 const requestCounts = new Map<string, { count: number; resetTime: number }>()
+
+// Última vez que barrimos entradas vencidas. Sin esto, cada IP nueva dejaba una
+// clave que nunca se eliminaba (fuga de memoria lenta).
+let lastCleanup = Date.now()
+
+function cleanupExpired(now: number): void {
+  // Barremos como mucho una vez por ventana para no pagar O(n) en cada request.
+  if (now - lastCleanup < RATE_LIMIT_WINDOW) return
+  lastCleanup = now
+  for (const [ip, record] of requestCounts) {
+    if (now > record.resetTime) {
+      requestCounts.delete(ip)
+    }
+  }
+}
 
 function getClientIP(request: NextRequest): string {
   return (
@@ -18,6 +38,7 @@ function getClientIP(request: NextRequest): string {
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now()
+  cleanupExpired(now)
   const record = requestCounts.get(ip)
 
   if (!record || now > record.resetTime) {

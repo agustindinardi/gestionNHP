@@ -1,20 +1,16 @@
 import React from "react"
-import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
 import { Sidebar } from "@/components/dashboard/sidebar"
 
-export default async function DashboardLayout({
+// El gating de autenticación lo hace el middleware (proxy.ts): redirige a
+// /auth/login cuando no hay usuario antes de que este layout se renderice.
+// No repetimos aquí supabase.auth.getUser() porque es una llamada de red al
+// servidor Auth de Supabase y duplicarla suma un round-trip completo (~150-300ms)
+// en cada navegación del dashboard. RLS sigue protegiendo los datos a nivel DB.
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect("/auth/login")
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />

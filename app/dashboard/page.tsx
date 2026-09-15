@@ -2,27 +2,24 @@ import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Printer, Package, History, TrendingUp, ClipboardList, RefreshCw, BookOpen } from "lucide-react"
 import Link from "next/link"
-import { redirect } from "next/navigation"
 import { formatDate } from "@/lib/format-date"
 import { getArgentinaTodayYmd } from "@/lib/argentina-time"
 
 export default async function DashboardPage() {
+  // El middleware ya redirige a /auth/login si no hay usuario, así que no
+  // repetimos supabase.auth.getUser() (round-trip de red). RLS filtra por user_id.
   const supabase = await createClient()
-  
-  // Verificar autenticación
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  
-  if (authError || !user) {
-    redirect("/auth/login")
-  }
-  
+
+  // head: true => Postgres devuelve solo el count, sin transferir filas.
+  // Antes select("*") traía TODAS las filas (incl. el historial completo de
+  // spare_part_changes) solo para descartarlas y quedarse con .count.
   const [printersResult, sparePartsResult, changesResult, tasksResult] = await Promise.all([
-    supabase.from("printers").select("*", { count: "exact" }),
-    supabase.from("spare_parts").select("*", { count: "exact" }),
-    supabase.from("spare_part_changes").select("*", { count: "exact" }),
+    supabase.from("printers").select("id", { count: "exact", head: true }),
+    supabase.from("spare_parts").select("id", { count: "exact", head: true }),
+    supabase.from("spare_part_changes").select("id", { count: "exact", head: true }),
     supabase
       .from("tasks")
-      .select("*", { count: "exact" })
+      .select("id", { count: "exact", head: true })
       .eq("due_date", getArgentinaTodayYmd())
       .is("completed_at", null),
   ])
