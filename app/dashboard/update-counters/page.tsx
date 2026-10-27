@@ -131,6 +131,13 @@ export default function UpdateCountersPage() {
       }
       seen.add(printer.id)
 
+      // Si el contador no cambió, no se actualiza: así no se pisa la fecha de
+      // última actualización con una carga que en realidad no trae datos nuevos.
+      if (newCounter === printer.counter) {
+        skipped.push({ name, raw: rawCounter, reason: "Sin cambios" })
+        continue
+      }
+
       matched.push({
         id: printer.id,
         name: printer.name,
@@ -305,7 +312,7 @@ export default function UpdateCountersPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                  No encontradas / se omitirán ({preview.skipped.length})
+                  Se omitirán ({preview.skipped.length})
                 </CardTitle>
                 <CardDescription>
                   Estas filas no se actualizarán.
