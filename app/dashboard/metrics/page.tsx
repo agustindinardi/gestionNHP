@@ -1,60 +1,29 @@
-import Link from "next/link"
-import { AlertOctagon, CalendarClock, ClipboardX, Gauge, Package, type LucideIcon } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { buildMetrics, STALE_COUNTER_DAYS, TASKS_WINDOW_DAYS, type ChangeInput } from "@/lib/metrics"
-import { formatNumber } from "@/lib/format-date"
-import { BarList } from "@/components/metrics/bar-list"
+import { buildLifeMetrics, type ChangeInput } from "@/lib/metrics"
 import { LifeStatusList } from "@/components/metrics/life-status-list"
-import { MonthlyChangesChart } from "@/components/metrics/monthly-changes-chart"
+import { PartLifeTable } from "@/components/metrics/part-life-table"
 
-const LIFE_ROWS_SHOWN = 10
-
-function KpiTile({
-  label,
-  value,
-  detail,
-  icon: Icon,
-  href,
-}: {
-  label: string
-  value: number
-  detail: React.ReactNode
-  icon: LucideIcon
-  href?: string
-}) {
-  const body = (
-    <Card className="h-full transition-colors hover:border-primary/40">
-      <CardContent className="space-y-1 p-4">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-medium text-muted-foreground">{label}</p>
-          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-        </div>
-        <p className="text-3xl font-bold text-foreground">{formatNumber(value)}</p>
-        <div className="text-xs text-muted-foreground">{detail}</div>
-      </CardContent>
-    </Card>
-  )
-  return href ? <Link href={href}>{body}</Link> : body
-}
+const OVERDUE_ROWS_SHOWN = 10
+const UPCOMING_ROWS_SHOWN = 10
+const READINGS_LOOKBACK_DAYS = 365
 
 export default async function MetricsPage() {
   const supabase = await createClient()
+  const readingsSince = new Date(Date.now() - READINGS_LOOKBACK_DAYS * 86_400_000).toISOString()
 
-  const [printersResult, changesResult, tasksResult] = await Promise.all([
+  const [printersResult, changesResult, readingsResult] = await Promise.all([
     supabase.from("printers").select("id, name, counter, updated_at"),
     supabase
       .from("spare_part_changes")
       .select(`
         change_date,
-        quantity,
         printer_id,
         printer_counter,
         spare_parts (
           id,
           code,
           description,
-          high_rotation,
           useful_life,
           category_id,
           spare_part_categories ( name )
@@ -62,145 +31,81 @@ export default async function MetricsPage() {
       `)
       .order("change_date", { ascending: false })
       .order("created_at", { ascending: false }),
-    supabase.from("tasks").select("due_date, completed_at, completed_by"),
+    supabase
+      .from("counter_readings")
+      .select("printer_id, counter, read_at")
+      .gte("read_at", readingsSince),
   ])
 
-  const metrics = buildMetrics({
+  const { overdue, upcoming, partStats } = buildLifeMetrics({
     printers: printersResult.data ?? [],
     // Sin tipos generados, supabase-js tipa las relaciones como arrays; en
     // runtime spare_parts (muchos-a-uno) llega como objeto.
     changes: (changesResult.data ?? []) as unknown as ChangeInput[],
-    tasks: tasksResult.data ?? [],
+    // Si la migración 013 todavía no se aplicó, la consulta falla y se sigue
+    // con las lecturas que salen de los cambios de repuestos.
+    readings: readingsResult.data ?? [],
   })
-
-  const urgent = metrics.life.filter((row) => row.status === "critical" || row.status === "serious")
-  const critical = urgent.filter((row) => row.status === "critical").length
-  const stale = metrics.staleCounters
-  const totalLast12 = metrics.monthly.reduce((sum, point) => sum + point.quantity, 0)
 
   return (
     <div className="viz-root space-y-6">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Métricas</h1>
         <p className="text-sm sm:text-base text-muted-foreground mt-1">
-          Consumo de repuestos, vida útil y seguimiento del trabajo
+          Vida útil de los repuestos en toda la flota
         </p>
       </div>
-
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiTile
-          label="Repuestos cambiados"
-          value={metrics.partsLast30}
-          icon={Package}
-          detail={
-            <>
-              Últimos 30 días · los 30 anteriores:{" "}
-              <span className="font-medium text-foreground">{formatNumber(metrics.partsPrev30)}</span>
-            </>
-          }
-        />
-        <KpiTile
-          label="Por cambiar pronto"
-          value={urgent.length}
-          icon={Gauge}
-          detail={
-            critical > 0 ? (
-              <span className="flex items-center gap-1">
-                <AlertOctagon className="h-3.5 w-3.5" style={{ color: "var(--status-critical)" }} aria-hidden />
-                <span className="font-medium text-foreground">{critical}</span> para cambiar ya
-              </span>
-            ) : (
-              "Vida útil restante ≤ 25%"
-            )
-          }
-        />
-        <KpiTile
-          label="Contadores sin actualizar"
-          value={stale.length}
-          icon={CalendarClock}
-          href="/dashboard/update-counters"
-          detail={
-            stale.length > 0 ? (
-              <span className="line-clamp-2">
-                Hace más de {STALE_COUNTER_DAYS} días: {stale.slice(0, 3).map((p) => p.name).join(", ")}
-                {stale.length > 3 && ` y ${stale.length - 3} más`}
-              </span>
-            ) : (
-              `Todos al día (últimos ${STALE_COUNTER_DAYS} días)`
-            )
-          }
-        />
-        <KpiTile
-          label="Tareas vencidas"
-          value={metrics.overdueTasks}
-          icon={ClipboardX}
-          href="/dashboard/tasks"
-          detail="Sin completar, con fecha pasada"
-        />
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Repuestos cambiados por mes</CardTitle>
-          <CardDescription>
-            Unidades en los últimos 12 meses · total {formatNumber(totalLast12)}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <MonthlyChangesChart data={metrics.monthly} />
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>Vida útil: lo más próximo a cambiar</CardTitle>
           <CardDescription>
-            Vida restante del último repuesto puesto en cada categoría, según el contador actual
+            Vida restante del último repuesto puesto en cada categoría, según el contador actual. La
+            fecha estimada sale del ritmo de copias de cada máquina.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <LifeStatusList rows={metrics.life.slice(0, LIFE_ROWS_SHOWN)} />
-          {metrics.life.length > LIFE_ROWS_SHOWN && (
-            <p className="mt-2 px-2 text-xs text-muted-foreground">
-              Mostrando {LIFE_ROWS_SHOWN} de {metrics.life.length}. El resto tiene más vida útil restante.
-            </p>
+          <section>
+            <h3 className="px-2 text-sm font-semibold text-foreground">
+              Próximos cambios <span className="font-normal text-muted-foreground">· por fecha estimada</span>
+            </h3>
+            <LifeStatusList rows={upcoming.slice(0, UPCOMING_ROWS_SHOWN)} />
+            {upcoming.length > UPCOMING_ROWS_SHOWN && (
+              <p className="mt-1 px-2 text-xs text-muted-foreground">
+                Mostrando {UPCOMING_ROWS_SHOWN} de {upcoming.length}. El resto se vence más adelante.
+              </p>
+            )}
+          </section>
+
+          {overdue.length > 0 && (
+            <section className="mt-6 border-t pt-4">
+              <h3 className="px-2 text-sm font-semibold text-foreground">
+                Vencidas ({overdue.length}){" "}
+                <span className="font-normal text-muted-foreground">· las más excedidas primero</span>
+              </h3>
+              <LifeStatusList rows={overdue.slice(0, OVERDUE_ROWS_SHOWN)} />
+              {overdue.length > OVERDUE_ROWS_SHOWN && (
+                <p className="mt-1 px-2 text-xs text-muted-foreground">
+                  Mostrando {OVERDUE_ROWS_SHOWN} de {overdue.length}.
+                </p>
+              )}
+            </section>
           )}
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Repuestos más usados</CardTitle>
-            <CardDescription>Unidades en los últimos 12 meses</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <BarList items={metrics.topParts} emptyText="Sin cambios en los últimos 12 meses" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Impresoras con más repuestos</CardTitle>
-            <CardDescription>Unidades en los últimos 12 meses</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <BarList
-              items={metrics.topPrinters}
-              emptyText="Sin cambios en los últimos 12 meses"
-              hrefFor={(item) => `/dashboard/printers/${item.id}`}
-            />
-          </CardContent>
-        </Card>
-      </div>
-
       <Card>
         <CardHeader>
-          <CardTitle>Tareas completadas por técnico</CardTitle>
-          <CardDescription>Últimos {TASKS_WINDOW_DAYS} días</CardDescription>
+          <CardTitle>Vida útil real de los repuestos</CardTitle>
+          <CardDescription>
+            Cuántas copias duró cada repuesto hasta que se cambió por otro de su misma categoría en
+            la misma máquina, comparado con la vida útil estimada. Solo incluye repuestos con
+            categoría. Si un cambio no se registró, ese intervalo cuenta doble y sube el promedio:
+            la mediana es menos sensible a eso.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <BarList items={metrics.tasksByTech} emptyText="Sin tareas completadas" />
+          <PartLifeTable stats={partStats} />
         </CardContent>
       </Card>
     </div>

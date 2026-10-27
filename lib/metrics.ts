@@ -1,16 +1,18 @@
-import { addDaysToYmd, getArgentinaTodayYmd } from "@/lib/argentina-time"
-import { calculateLifePercentage } from "@/lib/useful-life"
+import { getArgentinaTodayYmd } from "@/lib/argentina-time"
+import { calculateLifePercentage, parseUsefulLife } from "@/lib/useful-life"
 
-// Agregaciones de la pestaña Métricas. Función pura: recibe las filas crudas de
-// Supabase y devuelve todo lo que la UI necesita ya calculado.
+// Cálculos de la pestaña Métricas (vida útil). Función pura: recibe las filas
+// crudas de Supabase y devuelve todo lo que la UI necesita ya calculado.
 
 export type LifeStatus = "critical" | "serious" | "warning" | "good"
 
-export const STALE_COUNTER_DAYS = 30
-export const TASKS_WINDOW_DAYS = 90
-const MONTHS = 12
-const TOP_N = 8
 const DAY_MS = 86_400_000
+// Ventana de lecturas para el ritmo de copias: lo reciente pesa, lo viejo no.
+const RATE_WINDOW_DAYS = 180
+// Con menos tiempo entre la primera y la última lectura, el ritmo no es confiable.
+const MIN_RATE_SPAN_DAYS = 14
+// Por debajo de esta cantidad de cambios observados, el promedio real es orientativo.
+export const MIN_RELIABLE_SAMPLES = 3
 
 interface PrinterInput {
   id: string
@@ -21,39 +23,35 @@ interface PrinterInput {
 
 export interface ChangeInput {
   change_date: string
-  quantity: number | null
   printer_id: string
   printer_counter: number | null
   spare_parts: {
     id: string
     code: string
     description: string
-    high_rotation: boolean | null
     useful_life: string | null
     category_id: string | null
     spare_part_categories: { name: string } | null
   } | null
 }
 
-interface TaskInput {
-  due_date: string
-  completed_at: string | null
-  completed_by: string | null
+interface ReadingInput {
+  printer_id: string
+  counter: number
+  read_at: string
 }
 
-export interface MonthlyPoint {
-  key: string
-  label: string
-  fullLabel: string
-  quantity: number
+export interface RealLife {
+  mean: number
+  median: number
+  samples: number
 }
 
-export interface RankedItem {
-  id: string
-  label: string
-  sublabel?: string
-  value: number
-  title?: string
+export interface PartLifeStats extends RealLife {
+  sparePartId: string
+  code: string
+  description: string
+  nominal: number | null
 }
 
 export interface LifeRow {
@@ -67,18 +65,17 @@ export interface LifeRow {
   totalLife: number
   overdue: boolean
   status: LifeStatus
+  // Fecha (YYYY-MM-DD, Argentina) en que se llegaría a la vida útil al ritmo
+  // actual de la máquina; null si no hay lecturas suficientes o ya está vencida.
+  estimatedChangeYmd: string | null
+  daysToChange: number | null
+  realLife: RealLife | null
 }
 
-export interface MetricsData {
-  partsLast30: number
-  partsPrev30: number
-  staleCounters: { id: string; name: string }[]
-  overdueTasks: number
-  monthly: MonthlyPoint[]
-  topParts: RankedItem[]
-  topPrinters: RankedItem[]
-  life: LifeRow[]
-  tasksByTech: RankedItem[]
+export interface LifeMetrics {
+  overdue: LifeRow[]
+  upcoming: LifeRow[]
+  partStats: PartLifeStats[]
 }
 
 export function getLifeStatus(percentage: number): LifeStatus {
@@ -88,108 +85,147 @@ export function getLifeStatus(percentage: number): LifeStatus {
   return "good"
 }
 
-function monthKeys(todayYmd: string): string[] {
-  const [year, month] = todayYmd.split("-").map(Number)
-  const keys: string[] = []
-  for (let i = MONTHS - 1; i >= 0; i--) {
-    const date = new Date(Date.UTC(year, month - 1 - i, 1))
-    keys.push(`${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`)
+// change_date es DATE (día en Argentina, UTC-3 sin horario de verano).
+function changeDateMs(ymd: string): number {
+  return Date.parse(`${ymd}T12:00:00-03:00`)
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+}
+
+// Copias por día con el estimador de Theil–Sen (mediana de las pendientes entre
+// todos los pares de lecturas). A diferencia de "última menos primera", un
+// contador mal tipeado no arrastra el resultado.
+export function estimateDailyRate(points: { t: number; counter: number }[]): number | null {
+  if (points.length < 2) return null
+  const latest = Math.max(...points.map((p) => p.t))
+  const recent = points
+    .filter((p) => p.t >= latest - RATE_WINDOW_DAYS * DAY_MS)
+    .sort((a, b) => a.t - b.t)
+  if (recent.length < 2) return null
+  if ((recent[recent.length - 1].t - recent[0].t) / DAY_MS < MIN_RATE_SPAN_DAYS) return null
+
+  const slopes: number[] = []
+  for (let i = 0; i < recent.length; i++) {
+    for (let j = i + 1; j < recent.length; j++) {
+      const days = (recent[j].t - recent[i].t) / DAY_MS
+      if (days < 1) continue // lecturas del mismo día: pendiente sin sentido
+      slopes.push((recent[j].counter - recent[i].counter) / days)
+    }
   }
-  return keys
+  if (slopes.length === 0) return null
+
+  const rate = median(slopes)
+  return rate > 0 ? rate : null
 }
 
-function monthLabels(key: string): { label: string; fullLabel: string } {
-  const [year, month] = key.split("-").map(Number)
-  const date = new Date(Date.UTC(year, month - 1, 15))
-  const short = new Intl.DateTimeFormat("es-AR", { month: "short", timeZone: "UTC" })
-    .format(date)
-    .replace(".", "")
-  const long = new Intl.DateTimeFormat("es-AR", { month: "long", timeZone: "UTC" }).format(date)
-  return {
-    label: `${short} ${String(year).slice(2)}`,
-    fullLabel: `${long.charAt(0).toUpperCase()}${long.slice(1)} ${year}`,
-  }
-}
-
-function topN(map: Map<string, RankedItem>): RankedItem[] {
-  return Array.from(map.values())
-    .sort((a, b) => b.value - a.value)
-    .slice(0, TOP_N)
-}
-
-export function buildMetrics({
+export function buildLifeMetrics({
   printers,
   changes,
-  tasks,
+  readings,
   now = new Date(),
 }: {
   printers: PrinterInput[]
   changes: ChangeInput[] // ordenados por change_date DESC
-  tasks: TaskInput[]
+  readings: ReadingInput[]
   now?: Date
-}): MetricsData {
-  const today = getArgentinaTodayYmd(now)
-  const last30Start = addDaysToYmd(today, -29)
-  const prev30Start = addDaysToYmd(today, -59)
-
-  const keys = monthKeys(today)
-  const windowStart = `${keys[0]}-01`
-  const monthly = new Map(keys.map((key) => [key, 0]))
-
+}): LifeMetrics {
   const printersById = new Map(printers.map((p) => [p.id, p]))
-  const partTotals = new Map<string, RankedItem>()
-  const printerTotals = new Map<string, RankedItem & { changes: number }>()
-  const latestByCategory = new Map<string, ChangeInput>()
 
-  let partsLast30 = 0
-  let partsPrev30 = 0
+  // --- Lecturas por impresora: tabla de lecturas + contador de cada cambio de
+  // repuesto + contador vigente.
+  const pointsByPrinter = new Map<string, { t: number; counter: number }[]>()
+  const addPoint = (printerId: string, t: number, counter: number | null) => {
+    if (!counter || counter <= 0 || Number.isNaN(t)) return
+    const list = pointsByPrinter.get(printerId) ?? []
+    list.push({ t, counter })
+    pointsByPrinter.set(printerId, list)
+  }
+  for (const r of readings) addPoint(r.printer_id, Date.parse(r.read_at), r.counter)
+  for (const c of changes) addPoint(c.printer_id, changeDateMs(c.change_date), c.printer_counter)
+  for (const p of printers) {
+    if (p.updated_at) addPoint(p.id, Date.parse(p.updated_at), p.counter)
+  }
 
+  const rateByPrinter = new Map<string, number | null>()
+  for (const [printerId, points] of pointsByPrinter) {
+    rateByPrinter.set(printerId, estimateDailyRate(points))
+  }
+
+  // --- Vida útil real: en cada máquina, los cambios de una misma categoría
+  // forman una secuencia (la categoría es un lugar de la máquina, con códigos
+  // alternativos: 1117 / 1117N / 1117D). Lo que avanzó el contador entre un
+  // cambio y el siguiente es lo que duró el repuesto puesto en el primero.
+  // Los repuestos sin categoría (engranajes, bujes...) quedan afuera: una
+  // máquina puede tener varios iguales en distintas posiciones, y el intervalo
+  // entre dos cambios no es la vida de ninguno.
+  const sequences = new Map<string, ChangeInput[]>()
   for (const change of changes) {
-    const qty = change.quantity ?? 1
-    const date = change.change_date
-
-    const monthKey = date.slice(0, 7)
-    const monthTotal = monthly.get(monthKey)
-    if (monthTotal !== undefined) monthly.set(monthKey, monthTotal + qty)
-
-    if (date >= last30Start && date <= today) partsLast30 += qty
-    else if (date >= prev30Start && date < last30Start) partsPrev30 += qty
-
     const part = change.spare_parts
+    if (!part?.category_id) continue
+    const key = `${change.printer_id}:${part.category_id}`
+    const list = sequences.get(key) ?? []
+    list.push(change)
+    sequences.set(key, list)
+  }
 
-    if (date >= windowStart && date <= today) {
-      if (part) {
-        const item = partTotals.get(part.id) ?? {
-          id: part.id,
-          label: part.code,
-          sublabel: part.description,
-          value: 0,
-          title: `${part.code} — ${part.description}`,
-        }
-        item.value += qty
-        partTotals.set(part.id, item)
-      }
-
-      const printer = printersById.get(change.printer_id)
-      if (printer) {
-        const item = printerTotals.get(printer.id) ?? {
-          id: printer.id,
-          label: printer.name,
-          value: 0,
-          changes: 0,
-        }
-        item.value += qty
-        item.changes += 1
-        printerTotals.set(printer.id, item)
-      }
+  const samplesByPart = new Map<string, number[]>()
+  for (const sequence of sequences.values()) {
+    sequence.sort(
+      (a, b) =>
+        changeDateMs(a.change_date) - changeDateMs(b.change_date) ||
+        (a.printer_counter ?? 0) - (b.printer_counter ?? 0)
+    )
+    for (let i = 0; i < sequence.length - 1; i++) {
+      const current = sequence[i]
+      const next = sequence[i + 1]
+      const from = current.printer_counter ?? 0
+      const to = next.printer_counter ?? 0
+      // Contador sin cargar, el mismo día o un contador que retrocede (máquina
+      // reemplazada / error de carga): no es una muestra válida.
+      if (from <= 0 || to <= from) continue
+      const list = samplesByPart.get(current.spare_parts!.id) ?? []
+      list.push(to - from)
+      samplesByPart.set(current.spare_parts!.id, list)
     }
+  }
 
-    // Igual que el detalle de impresora: el cambio más reciente por categoría
-    // define cuánta vida útil le queda a esa categoría en esa máquina.
-    if (part?.category_id && part.useful_life && part.spare_part_categories) {
-      const key = `${change.printer_id}:${part.category_id}`
-      if (!latestByCategory.has(key)) latestByCategory.set(key, change)
+  const realLifeByPart = new Map<string, RealLife>()
+  for (const [partId, samples] of samplesByPart) {
+    realLifeByPart.set(partId, {
+      mean: samples.reduce((sum, value) => sum + value, 0) / samples.length,
+      median: median(samples),
+      samples: samples.length,
+    })
+  }
+
+  const partsById = new Map<string, NonNullable<ChangeInput["spare_parts"]>>()
+  for (const change of changes) {
+    if (change.spare_parts) partsById.set(change.spare_parts.id, change.spare_parts)
+  }
+
+  const partStats: PartLifeStats[] = Array.from(realLifeByPart, ([partId, stats]) => {
+    const part = partsById.get(partId)!
+    return {
+      sparePartId: partId,
+      code: part.code,
+      description: part.description,
+      nominal: part.useful_life ? parseUsefulLife(part.useful_life) : null,
+      ...stats,
     }
+  }).sort((a, b) => b.samples - a.samples || a.code.localeCompare(b.code))
+
+  // --- Vida restante del último repuesto puesto en cada categoría de cada
+  // máquina (misma regla que el detalle de impresora).
+  const latestByCategory = new Map<string, ChangeInput>()
+  for (const change of changes) {
+    const part = change.spare_parts
+    if (!part?.category_id || !part.useful_life || !part.spare_part_categories) continue
+    const key = `${change.printer_id}:${part.category_id}`
+    if (!latestByCategory.has(key)) latestByCategory.set(key, change)
   }
 
   const life: LifeRow[] = []
@@ -207,6 +243,18 @@ export function buildMetrics({
     // en vez de mostrar un 0% engañoso.
     if (totalLife === null) continue
 
+    const overdue = copiesUsed >= totalLife
+    let estimatedChangeYmd: string | null = null
+    let daysToChange: number | null = null
+    const rate = rateByPrinter.get(printer.id) ?? null
+    if (!overdue && rate) {
+      // copiesUsed se midió con el contador vigente, cargado en updated_at.
+      const base = printer.updated_at ? Date.parse(printer.updated_at) : now.getTime()
+      const eta = base + ((totalLife - copiesUsed) / rate) * DAY_MS
+      estimatedChangeYmd = getArgentinaTodayYmd(new Date(eta))
+      daysToChange = Math.round((eta - now.getTime()) / DAY_MS)
+    }
+
     life.push({
       key,
       printerId: printer.id,
@@ -216,54 +264,29 @@ export function buildMetrics({
       percentage,
       copiesUsed,
       totalLife,
-      overdue: copiesUsed >= totalLife,
+      overdue,
       status: getLifeStatus(percentage),
+      estimatedChangeYmd,
+      daysToChange,
+      realLife: realLifeByPart.get(part.id) ?? null,
     })
   }
-  // Orden por proporción usada (no por % restante): el % restante se clava en
-  // 0 para todas las vencidas, y así las más excedidas quedan primero.
-  life.sort((a, b) => b.copiesUsed / b.totalLife - a.copiesUsed / a.totalLife)
+  const usedRatio = (row: LifeRow) => row.copiesUsed / row.totalLife
 
-  const staleCutoff = now.getTime() - STALE_COUNTER_DAYS * DAY_MS
-  const staleCounters = printers
-    .filter((p) => !p.updated_at || Date.parse(p.updated_at) < staleCutoff)
-    .map((p) => ({ id: p.id, name: p.name }))
-    .sort((a, b) => a.name.localeCompare(b.name))
+  // Vencidas: las más excedidas primero (el % restante es 0 para todas).
+  const overdue = life.filter((row) => row.overdue).sort((a, b) => usedRatio(b) - usedRatio(a))
 
-  const overdueTasks = tasks.filter((t) => !t.completed_at && t.due_date < today).length
+  // Próximas: por fecha estimada, porque una máquina que imprime mucho llega
+  // antes al límite aunque le quede más %. Las que no tienen ritmo calculable
+  // van al final, ordenadas por proporción usada.
+  const upcoming = life
+    .filter((row) => !row.overdue)
+    .sort((a, b) => {
+      if (a.daysToChange !== null && b.daysToChange !== null) return a.daysToChange - b.daysToChange
+      if (a.daysToChange !== null) return -1
+      if (b.daysToChange !== null) return 1
+      return usedRatio(b) - usedRatio(a)
+    })
 
-  const tasksCutoff = now.getTime() - TASKS_WINDOW_DAYS * DAY_MS
-  const techCounts = new Map<string, number>([
-    ["M", 0],
-    ["A", 0],
-    ["V", 0],
-  ])
-  for (const task of tasks) {
-    if (!task.completed_at || Date.parse(task.completed_at) < tasksCutoff) continue
-    const who = task.completed_by ?? "Sin indicar"
-    techCounts.set(who, (techCounts.get(who) ?? 0) + 1)
-  }
-  const tasksByTech: RankedItem[] = Array.from(techCounts, ([who, value]) => ({
-    id: who,
-    label: who,
-    value,
-  })).filter((item) => item.value > 0 || ["M", "A", "V"].includes(item.id))
-
-  return {
-    partsLast30,
-    partsPrev30,
-    staleCounters,
-    overdueTasks,
-    monthly: keys.map((key) => ({ key, ...monthLabels(key), quantity: monthly.get(key) ?? 0 })),
-    topParts: topN(partTotals),
-    topPrinters: topN(printerTotals).map((item) => {
-      const changesCount = printerTotals.get(item.id)?.changes ?? 0
-      return {
-        ...item,
-        sublabel: `${changesCount} cambio${changesCount === 1 ? "" : "s"}`,
-      }
-    }),
-    life,
-    tasksByTech,
-  }
+  return { overdue, upcoming, partStats }
 }

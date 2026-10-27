@@ -157,24 +157,11 @@
   }
 }
 
-/* Tokens de la pestaña Métricas. Serie: azul validado (>= 3:1 sobre la
-   superficie de las tarjetas en claro y oscuro). Los colores de estado son
-   fijos y siempre van con ícono + texto, nunca solos. */
+/* Tokens de la pestaña Métricas: colores de estado fijos, siempre con ícono +
+   texto, nunca solos. */
 .viz-root {
-  --viz-series: #2a78d6;
-  --viz-grid: #e1e0d9;
-  --viz-axis: #c3c2b7;
-  --viz-muted: #898781;
-  --viz-cursor: rgba(11, 11, 11, 0.04);
   --status-good: #0ca30c;
   --status-warning: #fab219;
   --status-serious: #ec835a;
   --status-critical: #d03b3b;
-}
-
-.dark .viz-root {
-  --viz-series: #3987e5;
-  --viz-grid: #2c2c2a;
-  --viz-axis: #383835;
-  --viz-cursor: rgba(255, 255, 255, 0.06);
 }

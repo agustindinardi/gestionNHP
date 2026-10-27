@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { AlertOctagon, AlertTriangle, CheckCircle2, Eye, type LucideIcon } from "lucide-react"
-import { formatNumber } from "@/lib/format-date"
-import type { LifeRow, LifeStatus } from "@/lib/metrics"
+import { formatDate, formatNumber } from "@/lib/format-date"
+import { MIN_RELIABLE_SAMPLES, type LifeRow, type LifeStatus } from "@/lib/metrics"
 
 export const LIFE_STATUS: Record<LifeStatus, { label: string; icon: LucideIcon; color: string }> = {
   critical: { label: "Cambiar ya", icon: AlertOctagon, color: "var(--status-critical)" },
@@ -12,6 +12,58 @@ export const LIFE_STATUS: Record<LifeStatus, { label: string; icon: LucideIcon; 
 
 interface Props {
   rows: LifeRow[]
+}
+
+function pluralDays(days: number) {
+  return `${days} día${days === 1 ? "" : "s"}`
+}
+
+// Fecha estimada de cambio (según el ritmo de copias de la máquina) y vida útil
+// real promedio del repuesto (según los cambios registrados).
+function LifeEstimates({ row }: { row: LifeRow }) {
+  const parts: React.ReactNode[] = []
+
+  if (row.estimatedChangeYmd && row.daysToChange !== null) {
+    parts.push(
+      row.daysToChange > 0 ? (
+        <span key="eta">
+          Cambio estimado:{" "}
+          <span className="font-medium text-foreground">{formatDate(row.estimatedChangeYmd)}</span>{" "}
+          (en {pluralDays(row.daysToChange)})
+        </span>
+      ) : (
+        <span key="eta">
+          Por su ritmo de copias ya habría llegado al límite (≈{" "}
+          <span className="font-medium text-foreground">{formatDate(row.estimatedChangeYmd)}</span>)
+        </span>
+      )
+    )
+  }
+
+  if (row.realLife) {
+    const { mean, samples } = row.realLife
+    parts.push(
+      <span key="real">
+        Promedio real:{" "}
+        <span className="font-medium text-foreground">{formatNumber(Math.round(mean))}</span> copias (
+        {samples} cambio{samples === 1 ? "" : "s"}
+        {samples < MIN_RELIABLE_SAMPLES && ", orientativo"})
+      </span>
+    )
+  }
+
+  if (parts.length === 0) return null
+
+  return (
+    <p className="mt-0.5 text-xs text-muted-foreground">
+      {parts.map((part, i) => (
+        <span key={i}>
+          {i > 0 && " · "}
+          {part}
+        </span>
+      ))}
+    </p>
+  )
 }
 
 // Medidor por (impresora, categoría): pista neutra + relleno del color de
@@ -55,6 +107,7 @@ export function LifeStatusList({ rows }: Props) {
                       </>
                     )}
                   </p>
+                  <LifeEstimates row={row} />
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="flex items-center gap-1 text-xs font-medium text-foreground">
