@@ -17,6 +17,7 @@ import {
   Settings,
   RefreshCw,
   BookOpen,
+  BarChart3,
 } from "lucide-react"
 import { useState } from "react"
 import Image from "next/image"
@@ -29,6 +30,7 @@ const navigation = [
   { name: "Actualizar contadores", href: "/dashboard/update-counters", icon: RefreshCw },
   { name: "Manuales", href: "/dashboard/manuals", icon: BookOpen },
   { name: "Tareas", href: "/dashboard/tasks", icon: ClipboardList },
+  { name: "Métricas", href: "/dashboard/metrics", icon: BarChart3 },
   { name: "Configuración", href: "/dashboard/settings", icon: Settings },
 ]
 
