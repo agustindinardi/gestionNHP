@@ -38,15 +38,28 @@ export function UpdateCounterForm({ printerId, currentCounter }: Props) {
     }
 
     const counterValue = Number(cleanValue)
+    const readAt = new Date().toISOString()
 
     const { error: updateError } = await supabase
       .from("printers")
-      .update({ counter: counterValue, updated_at: new Date().toISOString() })
+      .update({ counter: counterValue, updated_at: readAt })
       .eq("id", printerId)
 
     if (updateError) {
       setError(updateError.message)
       setLoading(false)
+      return
+    }
+
+    // Historial de lecturas (user_id lo completa la DB con auth.uid()).
+    const { error: readingError } = await supabase
+      .from("counter_readings")
+      .insert({ printer_id: printerId, counter: counterValue, read_at: readAt, source: "single" })
+
+    if (readingError) {
+      setError(`El contador se actualizó, pero no se guardó el historial: ${readingError.message}`)
+      setLoading(false)
+      router.refresh()
       return
     }
 

@@ -159,17 +159,28 @@ export default function UpdateCountersPage() {
 
     let success = 0
     const errors: string[] = []
+    const readAt = new Date().toISOString()
+    const readings: { printer_id: string; counter: number; read_at: string; source: "bulk" }[] = []
 
     for (const row of preview.matched) {
       const { error: updateError } = await supabase
         .from("printers")
-        .update({ counter: row.newCounter, updated_at: new Date().toISOString() })
+        .update({ counter: row.newCounter, updated_at: readAt })
         .eq("id", row.id)
 
       if (updateError) {
         errors.push(`${row.name}: ${updateError.message}`)
       } else {
         success++
+        readings.push({ printer_id: row.id, counter: row.newCounter, read_at: readAt, source: "bulk" })
+      }
+    }
+
+    // Historial de lecturas (user_id lo completa la DB con auth.uid()).
+    if (readings.length > 0) {
+      const { error: readingsError } = await supabase.from("counter_readings").insert(readings)
+      if (readingsError) {
+        errors.push(`Los contadores se actualizaron, pero no se guardó el historial: ${readingsError.message}`)
       }
     }
 
